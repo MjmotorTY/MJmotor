@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>特案簽核審核 — 銘勁汽車 MG</title>
+<style>
+:root {
+  --primary:#1a5276; --primary-light:#2e86c1; --accent:#e67e22;
+  --bg:#f0f4f8; --card:#fff; --text:#1a252f; --muted:#7f8c8d; --border:#d5dce4;
+  --success:#1e8449; --success-bg:#eafaf1; --success-border:#a9dfbf;
+  --danger:#c0392b;  --danger-bg:#fdedec;   --danger-border:#f5b7b1;
+  --warning:#d68910; --warning-bg:#fef9e7;  --warning-border:#fad7a0;
+  --info-bg:#eaf4fb; --radius:10px; --shadow:0 2px 12px rgba(26,82,118,.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+.site-header{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.15);position:sticky;top:0;z-index:100;}
+.header-brand{display:flex;align-items:center;gap:12px;}
+.header-brand .logo{width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;}
+.header-brand .name{font-size:16px;font-weight:700;}
+.header-brand .sub{font-size:11px;opacity:.7;}
+.header-user{display:flex;align-items:center;gap:10px;font-size:13px;opacity:.9;}
+.avatar{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;}
+
+.review-banner{background:linear-gradient(90deg,#fff8f0,#fef3e8);border-bottom:3px solid var(--accent);padding:14px 24px;display:flex;align-items:center;gap:12px;}
+.banner-badge{background:var(--accent);color:#fff;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;}
+.banner-text{font-size:14px;color:var(--primary);font-weight:600;}
+.banner-sub{font-size:12px;color:var(--muted);}
+
+.page-wrap{max-width:820px;margin:0 auto;padding:28px 20px 100px;}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px 28px;margin-bottom:20px;box-shadow:var(--shadow);}
+.card-header{display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--accent);padding-bottom:12px;margin-bottom:20px;}
+.card-icon{width:32px;height:32px;border-radius:8px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.card-title{font-size:15px;font-weight:700;color:var(--primary);}
+
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.info-item{display:flex;flex-direction:column;gap:2px;}
+.info-label{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em;}
+.info-value{font-size:14px;color:var(--text);font-weight:500;}
+.info-value.highlight{color:var(--primary);font-weight:700;}
+.full{grid-column:1/-1;}
+.content-box{background:#f7f9fc;border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:14px;line-height:1.8;color:var(--text);}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:99px;font-size:12px;font-weight:700;}
+.status-pill.signing{background:var(--info-bg);color:var(--primary);border:1px solid #aed6f1;}
+.cat-tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--primary);color:#fff;}
+
+.tracker{display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:4px;}
+.tnode{flex:1;min-width:76px;text-align:center;position:relative;}
+.tnode::before{content:'';position:absolute;top:14px;left:50%;right:-50%;height:2px;background:var(--border);z-index:0;}
+.tnode:last-child::before{display:none;}
+.tnode.done::before{background:var(--success);}
+.tdot{width:28px;height:28px;border-radius:50%;margin:0 auto 6px;position:relative;z-index:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+.tnode.done .tdot{background:var(--success);}
+.tnode.active .tdot,.tnode.me .tdot{background:var(--accent);box-shadow:0 0 0 4px rgba(230,126,34,.25);animation:pulse 1.5s infinite;}
+.tnode.pending .tdot{background:var(--border);color:var(--muted);}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(230,126,34,.4)}50%{box-shadow:0 0 0 8px rgba(230,126,34,0)}}
+.tlabel{font-size:11px;color:var(--muted);}
+.twho{font-size:11px;color:var(--primary);font-weight:600;}
+.tstatus{font-size:10px;margin-top:2px;}
+.tstatus.done{color:var(--success);} .tstatus.me,.tstatus.active{color:var(--accent);} .tstatus.pending{color:var(--muted);}
+
+.att-grid{display:flex;gap:10px;flex-wrap:wrap;}
+.att-item{display:flex;align-items:center;gap:8px;background:#f4f6f8;border-radius:8px;padding:9px 14px;border:1px solid var(--border);font-size:13px;cursor:pointer;transition:all .15s;}
+.att-item:hover{border-color:var(--primary-light);background:var(--info-bg);}
+
+.log-list{display:flex;flex-direction:column;gap:12px;}
+.log-item{display:flex;gap:14px;align-items:flex-start;}
+.log-dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.log-dot.done{background:var(--success);} .log-dot.active{background:var(--accent);} .log-dot.pending{background:var(--border);}
+.log-body{flex:1;}
+.log-title{font-size:13px;font-weight:700;color:var(--text);}
+.log-meta{font-size:11px;color:var(--muted);}
+.log-comment{margin-top:6px;font-size:12px;padding:6px 10px;background:#f4f6f8;border-radius:6px;color:var(--text);border-left:3px solid var(--border);}
+.log-cosign-tag{display:inline-block;margin-top:5px;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--info-bg);color:var(--primary);border:1px solid #aed6f1;font-weight:600;}
+
+.action-card{background:var(--card);border:2px solid var(--primary);border-radius:var(--radius);padding:24px 28px;margin-bottom:20px;box-shadow:0 4px 20px rgba(26,82,118,.12);}
+.action-title{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+.action-title::before{content:'';width:4px;height:20px;background:var(--accent);border-radius:2px;}
+.action-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;}
+.action-btn{padding:10px 22px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid;font-family:inherit;transition:all .15s;}
+.action-btn.approve{border-color:var(--success);color:var(--success);background:#fff;}
+.action-btn.approve.selected{background:var(--success);color:#fff;}
+.action-btn.reject{border-color:var(--danger);color:var(--danger);background:#fff;}
+.action-btn.reject.selected{background:var(--danger);color:#fff;}
+.action-btn.supplement{border-color:var(--warning);color:var(--warning);background:#fff;}
+.action-btn.supplement.selected{background:var(--warning);color:#fff;}
+
+.detail-panel{display:none;border-radius:8px;padding:18px 20px;margin-top:4px;}
+.detail-panel.show{display:block;}
+.detail-panel.approve-panel{background:var(--success-bg);border:1px solid var(--success-border);}
+.detail-panel.reject-panel{background:var(--danger-bg);border:1px solid var(--danger-border);}
+.detail-panel.supplement-panel{background:var(--warning-bg);border:1px solid var(--warning-border);}
+.panel-label{font-size:12px;font-weight:700;margin-bottom:10px;}
+.approve-panel .panel-label{color:var(--success);}
+.reject-panel .panel-label{color:var(--danger);}
+.supplement-panel .panel-label{color:var(--warning);}
+.req{color:var(--danger);}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.field:last-child{margin-bottom:0;}
+.field label{font-size:13px;font-weight:600;color:var(--text);}
+.field textarea{padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:inherit;font-size:14px;color:var(--text);resize:vertical;outline:none;transition:border-color .15s,box-shadow .15s;background:#fff;}
+.field textarea:focus{border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(46,134,193,.12);}
+.field textarea.error{border-color:var(--danger);}
+.field-err{font-size:11px;color:var(--danger);display:none;}
+.field-err.show{display:block;}
+.divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+.submit-row{display:flex;justify-content:flex-end;gap:12px;}
+.btn{padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s;}
+.btn-outline{background:#fff;color:var(--primary);border:1.5px solid var(--primary);}
+.btn-outline:hover{background:var(--info-bg);}
+.btn-approve{background:var(--success);color:#fff;}
+.btn-reject{background:var(--danger);color:#fff;}
+.btn-supplement{background:var(--warning);color:#fff;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+
+/* co-sign */
+.cosign-section{margin-top:16px;background:#f7f9fc;border:1.5px dashed #b8cfe8;border-radius:8px;padding:14px 16px;}
+.cosign-title{font-size:13px;font-weight:700;color:var(--primary);margin-bottom:4px;}
+.cosign-desc{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.cosign-opts{display:flex;flex-direction:column;gap:8px;}
+.cosign-opt{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;user-select:none;}
+.cosign-opt:not(.disabled):hover{border-color:var(--primary-light);background:var(--info-bg);}
+.cosign-opt.disabled{opacity:.55;cursor:not-allowed;background:#f4f6f8;}
+.cosign-opt input[type=checkbox]{width:16px;height:16px;accent-color:var(--primary);flex-shrink:0;}
+.cosign-opt.disabled input{pointer-events:none;}
+.cosign-opt-body{flex:1;}
+.cosign-opt-name{font-size:13px;font-weight:700;color:var(--text);}
+.cosign-opt-flow{font-size:11px;color:var(--muted);margin-top:2px;}
+.cosign-opt-taken{font-size:11px;color:var(--primary);font-weight:600;margin-top:3px;background:var(--info-bg);border:1px solid #aed6f1;display:inline-block;padding:1px 8px;border-radius:4px;}
+.cosign-preview{margin-top:10px;padding:10px 12px;background:var(--info-bg);border:1px solid #aed6f1;border-radius:8px;}
+.cosign-preview-title{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:6px;}
+.cosign-dept-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;}
+.cosign-dept-row:last-child{margin-bottom:0;}
+.cosign-dept-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--primary);color:#fff;}
+.cosign-chip{font-size:11px;padding:2px 8px;border-radius:4px;background:#fff;border:1px solid #aed6f1;color:var(--primary);}
+.cosign-arrow{font-size:11px;color:var(--muted);}
+
+/* result */
+.result-overlay{display:none;position:fixed;inset:0;background:rgba(240,244,248,.96);z-index:200;align-items:center;justify-content:center;}
+.result-overlay.show{display:flex;}
+.result-box{text-align:center;max-width:400px;padding:0 20px;}
+.result-icon{width:80px;height:80px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;animation:popIn .4s cubic-bezier(.17,.67,.3,1.3);}
+@keyframes popIn{from{transform:scale(0)}to{transform:scale(1)}}
+.result-title{font-size:22px;font-weight:700;margin-bottom:8px;}
+.result-sub{font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.8;white-space:pre-line;}
+
+/* simulate fab */
+.sim-fab{position:fixed;bottom:28px;right:28px;z-index:150;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.sim-label{font-size:11px;color:var(--muted);text-align:right;background:#fff;padding:3px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.sim-btn{background:#fff;color:var(--primary);border:2px solid var(--primary);border-radius:99px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(26,82,118,.18);display:flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;}
+.sim-btn:hover{background:var(--primary);color:#fff;transform:translateY(-2px);}
+.sim-btn:active{transform:translateY(0);}
+
+@media(max-width:580px){
+  .info-grid{grid-template-columns:1fr;}
+  .card,.action-card{padding:16px 14px;}
+  .page-wrap{padding:16px 12px 100px;}
+  .sim-fab{bottom:16px;right:16px;}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-brand">
+    <div class="logo">MG</div>
+    <div><div class="name">銘勁汽車</div><div class="sub">特案報告申請系統</div></div>
+  </div>
+  <div class="header-user">
+    <div class="avatar" id="hAvatar">李</div>
+    <span id="hName">李主管（據點主管）｜銘勁八德所</span>
+  </div>
+</header>
+
+<div class="review-banner">
+  <div class="banner-badge">待您簽核</div>
+  <div>
+    <div class="banner-text" id="bannerText">您有 1 件特案申請等待您的審核（第 1 關）</div>
+    <div class="banner-sub">請仔細閱讀申請內容後，選擇核准、退回或要求補件</div>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <div class="card">
+    <div class="card-header"><div class="card-icon">📋</div><div class="card-title">申請資訊摘要</div></div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">案件編號</div><div class="info-value highlight">SC-2026-0042</div></div>
+      <div class="info-item"><div class="info-label">申請狀態</div><div class="info-value"><span class="status-pill signing">● 簽核中</span></div></div>
+      <div class="info-item"><div class="info-label">申請人</div><div class="info-value">王小明</div></div>
+      <div class="info-item"><div class="info-label">所屬單位</div><div class="info-value">銘勁八德所</div></div>
+      <div class="info-item"><div class="info-label">特案分類</div><div class="info-value"><span class="cat-tag">新車</span></div></div>
+      <div class="info-item"><div class="info-label">子項目</div><div class="info-value">配件異動</div></div>
+      <div class="info-item"><div class="info-label">客戶姓名</div><div class="info-value">陳○○</div></div>
+      <div class="info-item"><div class="info-label">車牌號碼</div><div class="info-value">ABC-1234</div></div>
+      <div class="info-item"><div class="info-label">車型／車色</div><div class="info-value">MG5 / 星光銀</div></div>
+      <div class="info-item"><div class="info-label">訂單號碼</div><div class="info-value">MMJT-20260042</div></div>
+      <div class="info-item"><div class="info-label">送出時間</div><div class="info-value">2026-04-08 09:35</div></div>
+      <div class="info-item"><div class="info-label">目前關卡</div><div class="info-value highlight" id="stageLabel">第 1 關 / 共 5 關</div></div>
+      <div class="info-item full"><div class="info-label">申請內容</div>
+        <div class="content-box">客戶於 4/5 交車後希望加裝後座頭枕（頂規配件），原訂單未列入，需進行配件異動以辦理追加安裝。客戶已口頭確認願意支付差價，請主管審核並核可此配件異動申請。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-icon">📎</div><div class="card-title">附件</div></div>
+    <div class="att-grid">
+      <div class="att-item">📄 訂單明細.pdf <span style="font-size:11px;color:var(--muted);">128 KB</span></div>
+      <div class="att-item">🖼️ 配件照片.jpg <span style="font-size:11px;color:var(--muted);">256 KB</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-icon">🔄</div><div class="card-title">審核流程進度</div></div>
+    <div class="tracker" id="trackerEl"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-icon">📜</div><div class="card-title">審核歷程</div></div>
+    <div class="log-list" id="logList"></div>
+  </div>
+
+  <div class="action-card">
+    <div class="action-title">選擇簽核動作</div>
+    <div class="action-row">
+      <button class="action-btn approve" id="btn-approve" onclick="selectAction('approve')">✓ 核准</button>
+      <button class="action-btn reject"  id="btn-reject"  onclick="selectAction('reject')">✕ 退回</button>
+      <button class="action-btn supplement" id="btn-supplement" onclick="selectAction('supplement')">⊕ 要求補件</button>
+    </div>
+    <div class="field-err" id="err-action" style="margin-top:-16px;margin-bottom:16px;">請選擇簽核動作</div>
+
+    <div class="detail-panel approve-panel" id="panel-approve">
+      <div class="panel-label">✓ 核准說明</div>
+      <div class="field">
+        <label>核准附帶條件備註 <span style="color:var(--muted);font-size:12px;">（選填）</span></label>
+        <textarea id="approveCondition" rows="3" placeholder="如有附帶條件或注意事項，請在此說明…"></textarea>
+      </div>
+      <div class="field">
+        <label>一般留言 <span style="color:var(--muted);font-size:12px;">（選填）</span></label>
+        <textarea id="approveComment" rows="2" placeholder="在這裡新增您的留言…"></textarea>
+      </div>
+      <div class="cosign-section">
+        <div class="cosign-title">⊕ 會簽設定 <span style="font-weight:400;font-size:12px;color:var(--muted);">（選填）</span></div>
+        <div class="cosign-desc">核准後可附加會簽，已由前關設定的選項不可重複選擇</div>
+        <div class="cosign-opts" id="cosignOpts"></div>
+        <div class="cosign-preview" id="cosignPreview" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="detail-panel reject-panel" id="panel-reject">
+      <div class="panel-label">✕ 退回說明</div>
+      <div class="field">
+        <label>退回原因說明 <span class="req">*</span>（必填）</label>
+        <textarea id="rejectReason" rows="3" placeholder="請詳述退回原因，申請人將收到此說明…"></textarea>
+        <div class="field-err" id="err-reject">請填寫退回原因</div>
+      </div>
+      <div class="field">
+        <label>一般留言 <span style="color:var(--muted);font-size:12px;">（選填）</span></label>
+        <textarea id="rejectComment" rows="2" placeholder="在這裡新增您的留言…"></textarea>
+      </div>
+    </div>
+
+    <div class="detail-panel supplement-panel" id="panel-supplement">
+      <div class="panel-label">⊕ 補件說明</div>
+      <div class="field">
+        <label>補件要求說明 <span class="req">*</span>（必填）</label>
+        <textarea id="supplementNote" rows="3" placeholder="請說明需要補充哪些資料或文件…"></textarea>
+        <div class="field-err" id="err-supplement">請填寫補件要求說明</div>
+      </div>
+      <div class="field">
+        <label>一般留言 <span style="color:var(--muted);font-size:12px;">（選填）</span></label>
+        <textarea id="supplementComment" rows="2" placeholder="在這裡新增您的留言…"></textarea>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="submit-row">
+      <button class="btn btn-outline" onclick="history.back()">← 返回</button>
+      <button class="btn" id="submitBtn" onclick="submitReview()" disabled>選擇動作後送出</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- 模擬浮動按鈕 -->
+<div class="sim-fab">
+  <div class="sim-label" id="simLabel">🧪 測試模式　第 1 關 / 共 5 關</div>
+  <button class="sim-btn" id="simBtn" onclick="simulateNext()">⏭ 模擬下一關簽核</button>
+</div>
+
+<!-- Result -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-box">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <button class="btn" id="resultBtn" onclick="location.reload()" style="margin:0 auto;">重新開始</button>
+  </div>
+</div>
+
+<script>
+const REVIEWERS = [
+  { role:'據點主管',        name:'李主管',   avatar:'李' },
+  { role:'營業部主管',      name:'陳部主管', avatar:'陳' },
+  { role:'車業組-車業主任', name:'車業主任', avatar:'車' },
+  { role:'財管部-黃部長',   name:'黃部長',   avatar:'黃' },
+  { role:'總經理',          name:'王總',     avatar:'王' },
+];
+
+const CO_SIGN_DEPTS = {
+  '服務部': {
+    label: '服務部會簽',
+    flow:  'PDI-琇如 → 服務部廠長 → 服務部部長',
+    members: ['服務部-PDI-琇如','服務部-廠長','服務部-部長'],
+  },
+  '財管部': {
+    label: '財管部會簽',
+    flow:  '財管部-黃部長',
+    members: ['財管部-黃部長'],
+  },
+};
+
+// state
+let step = 0;                   // 目前第幾關 (0-based)
+let chosenCoSign = {};          // { '服務部': 1, '財管部': 3 } — 值為第幾關設定 (1-based)
+let currentAction = '';
+const TOTAL = REVIEWERS.length;
+
+const logs = [
+  { dot:'done',   title:'申請人 王小明 送出申請',         meta:'2026-04-08　09:35' },
+  { dot:'active', title:'第1關　等待 據點主管（李主管）簽核', meta:'系統通知已發送　09:35' },
+];
+
+/* ── render ────────────────────────── */
+function renderTracker() {
+  const nodes = [
+    { label:'申請人', who:'王小明', state:'done', st:'已送出' },
+    ...REVIEWERS.map((r,i) => ({
+      label: `第${i+1}關`,
+      who:   r.role,
+      state: i < step ? 'done' : i === step ? 'me' : 'pending',
+      st:    i < step ? '已核准' : i === step ? '等待您簽核' : '尚未輪到',
+    })),
+  ];
+  document.getElementById('trackerEl').innerHTML = nodes.map(n =>
+    `<div class="tnode ${n.state}">
+      <div class="tdot">${n.state==='done'?'✓':n.state==='me'?'★':''}</div>
+      <div class="tlabel">${n.label}</div>
+      <div class="twho">${n.who}</div>
+      <div class="tstatus ${n.state==='me'?'active':n.state}">${n.st}</div>
+    </div>`).join('');
+}
+
+function renderLog() {
+  document.getElementById('logList').innerHTML = logs.map(l =>
+    `<div class="log-item">
+      <div class="log-dot ${l.dot}"></div>
+      <div class="log-body">
+        <div class="log-title">${l.title}</div>
+        <div class="log-meta">${l.meta}</div>
+        ${l.cosign ? `<span class="log-cosign-tag">會簽：${l.cosign}</span>` : ''}
+        ${l.comment ? `<div class="log-comment">${l.comment}</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderCoSignOpts() {
+  let html = '';
+  for (const [dept, info] of Object.entries(CO_SIGN_DEPTS)) {
+    const takenStep = chosenCoSign[dept]; // undefined or 1-based step
+    const takenByPrev = takenStep !== undefined && takenStep !== step + 1;
+    const takenByMe   = takenStep === step + 1;
+
+    if (takenByPrev) {
+      html += `<label class="cosign-opt disabled">
+        <input type="checkbox" checked disabled>
+        <div class="cosign-opt-body">
+          <div class="cosign-opt-name">${info.label}</div>
+          <div class="cosign-opt-taken">已由第 ${takenStep} 關設定，不可重複選擇</div>
+        </div>
+      </label>`;
+    } else {
+      html += `<label class="cosign-opt">
+        <input type="checkbox" value="${dept}" ${takenByMe?'checked':''}
+          onchange="onCoSign('${dept}',this.checked)">
+        <div class="cosign-opt-body">
+          <div class="cosign-opt-name">${info.label}</div>
+          <div class="cosign-opt-flow">${info.flow}</div>
+        </div>
+      </label>`;
+    }
+  }
+  document.getElementById('cosignOpts').innerHTML = html;
+  renderCoSignPreview();
+}
+
+function renderCoSignPreview() {
+  const el = document.getElementById('cosignPreview');
+  const mine = Object.keys(chosenCoSign).filter(d => chosenCoSign[d] === step + 1);
+  if (!mine.length) { el.style.display='none'; return; }
+  let html = '<div class="cosign-preview-title">本關會簽流程：</div>';
+  mine.forEach(dept => {
+    const info = CO_SIGN_DEPTS[dept];
+    html += `<div class="cosign-dept-row">
+      <span class="cosign-dept-badge">${dept}</span>
+      ${info.members.map(m=>`<span class="cosign-chip">${m}</span>`).join('<span class="cosign-arrow">→</span>')}
+    </div>`;
+  });
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function onCoSign(dept, checked) {
+  if (checked) chosenCoSign[dept] = step + 1;
+  else delete chosenCoSign[dept];
+  renderCoSignPreview();
+}
+
+/* ── header / labels ───────────────── */
+function updateMeta() {
+  const r = REVIEWERS[step];
+  document.getElementById('hAvatar').textContent = r.avatar;
+  document.getElementById('hName').textContent   = `${r.name}（${r.role}）｜銘勁八德所`;
+  document.getElementById('bannerText').textContent = `您有 1 件特案申請等待您的審核（第 ${step+1} 關）`;
+  document.getElementById('stageLabel').textContent = `第 ${step+1} 關 / 共 ${TOTAL} 關`;
+  document.getElementById('simLabel').textContent   = `🧪 測試模式　第 ${step+1} 關 / 共 ${TOTAL} 關`;
+  document.getElementById('simBtn').textContent = step === TOTAL-1 ? '⏭ 模擬最終核准完成' : '⏭ 模擬下一關簽核';
+}
+
+/* ── action ────────────────────────── */
+function resetPanel() {
+  currentAction = '';
+  ['approve','reject','supplement'].forEach(a => {
+    document.getElementById('btn-'+a).classList.remove('selected');
+    document.getElementById('panel-'+a).classList.remove('show');
+  });
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.className = 'btn'; btn.textContent = '選擇動作後送出';
+  document.querySelectorAll('.field-err').forEach(e => e.classList.remove('show'));
+  document.querySelectorAll('textarea').forEach(t => { t.value=''; t.classList.remove('error'); });
+  renderCoSignOpts();
+}
+
+function selectAction(action) {
+  currentAction = action;
+  document.getElementById('err-action').classList.remove('show');
+  ['approve','reject','supplement'].forEach(a => {
+    document.getElementById('btn-'+a).classList.remove('selected');
+    document.getElementById('panel-'+a).classList.remove('show');
+  });
+  document.getElementById('btn-'+action).classList.add('selected');
+  document.getElementById('panel-'+action).classList.add('show');
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = false;
+  btn.className = 'btn btn-'+action;
+  btn.textContent = { approve:'確認核准', reject:'確認退回', supplement:'送出補件要求' }[action];
+}
+
+function submitReview() {
+  if (!currentAction) { document.getElementById('err-action').classList.add('show'); return; }
+  if (currentAction === 'reject') {
+    const v = document.getElementById('rejectReason').value.trim();
+    if (!v) { document.getElementById('err-reject').classList.add('show'); document.getElementById('rejectReason').classList.add('error'); return; }
+    document.getElementById('err-reject').classList.remove('show'); document.getElementById('rejectReason').classList.remove('error');
+  }
+  if (currentAction === 'supplement') {
+    const v = document.getElementById('supplementNote').value.trim();
+    if (!v) { document.getElementById('err-supplement').classList.add('show'); document.getElementById('supplementNote').classList.add('error'); return; }
+    document.getElementById('err-supplement').classList.remove('show'); document.getElementById('supplementNote').classList.remove('error');
+  }
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '送出中…';
+  setTimeout(() => showResult(currentAction), 800);
+}
+
+/* ── simulate ──────────────────────── */
+function simulateNext() {
+  const r = REVIEWERS[step];
+  const t = new Date();
+  const ts = `2026-04-08　${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+  const mine = Object.keys(chosenCoSign).filter(d => chosenCoSign[d] === step+1);
+
+  // flip active → done
+  for (let i = logs.length-1; i >= 0; i--) {
+    if (logs[i].dot === 'active') { logs[i].dot = 'done'; break; }
+  }
+
+  logs.push({
+    dot: 'done',
+    title: `第${step+1}關　${r.role}（${r.name}）已核准`,
+    meta: ts,
+    cosign: mine.length ? mine.join('、') : '',
+  });
+
+  if (step < TOTAL - 1) {
+    step++;
+    const next = REVIEWERS[step];
+    logs.push({ dot:'active', title:`第${step+1}關　等待 ${next.role}（${next.name}）簽核`, meta:`${ts}（通知已發送）` });
+    renderTracker(); renderLog(); updateMeta(); resetPanel();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  } else {
+    // all done
+    logs.push({ dot:'done', title:'所有關卡審核完成，申請已核准', meta: ts });
+    renderLog();
+    setTimeout(() => {
+      const cosignSummary = Object.keys(chosenCoSign).length
+        ? '\n附加會簽：' + Object.keys(chosenCoSign).map(d=>`${d}（第${chosenCoSign[d]}關設定）`).join('、')
+        : '';
+      showResultBox('✓','var(--success)','全部簽核完成！',
+        `案件 SC-2026-0042 已完成全部 ${TOTAL} 關簽核。${cosignSummary}\n申請人將收到核准通知。`);
+    }, 300);
+  }
+}
+
+/* ── result ────────────────────────── */
+function showResult(action) {
+  const cfgs = {
+    approve:    { icon:'✓', bg:'var(--success)', title:'已核准！',    sub:`申請案件 SC-2026-0042 已通過第 ${step+1} 關審核，\n系統已通知下一關審核人員繼續簽核。` },
+    reject:     { icon:'✕', bg:'var(--danger)',  title:'已退回申請',  sub:`案件已退回，\n系統已通知申請人王小明，請其修改後重新送出。` },
+    supplement: { icon:'⊕', bg:'var(--warning)', title:'已要求補件', sub:`已通知申請人王小明補充所需資料，\n補件完成後流程將繼續進行。` },
+  };
+  const c = cfgs[action];
+  showResultBox(c.icon, c.bg, c.title, c.sub);
+}
+
+function showResultBox(icon, bg, title, sub) {
+  const el = document.getElementById('resultIcon');
+  el.textContent = icon; el.style.background = bg;
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultTitle').style.color = bg;
+  document.getElementById('resultSub').textContent = sub;
+  const rb = document.getElementById('resultBtn');
+  rb.style.background = bg; rb.style.color = '#fff';
+  document.getElementById('resultOverlay').classList.add('show');
+}
+
+/* ── init ──────────────────────────── */
+renderTracker(); renderLog(); renderCoSignOpts(); updateMeta();
+</script>
+</body>
+</html>
