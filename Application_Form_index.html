@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>特案報告申請 — 銘勁汽車 MG</title>
+
+<!-- MSAL.js -->
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+
 <style>
 :root {
   --primary: #1a5276;
@@ -32,6 +36,25 @@ body {
   color: var(--text);
   min-height: 100vh;
 }
+
+/* ── Loading overlay ── */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px;
+}
+.loading-overlay.hide { display: none; }
+.loading-spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--muted); }
 
 /* ── Header ── */
 .site-header {
@@ -280,47 +303,8 @@ body {
   background:var(--info-bg); border:1px solid #aed6f1;
   border-radius:8px; padding:12px 24px;
   font-size:16px; font-weight:700; color:var(--primary);
-  margin-bottom:20px;
+  margin-bottom:28px;
 }
-
-/* 審核連結區塊 */
-.review-link-box {
-  background:#f7f9fc;
-  border:1.5px dashed #b8cfe8;
-  border-radius:10px;
-  padding:16px 20px;
-  margin-bottom:20px;
-  text-align:left;
-}
-.review-link-title {
-  font-size:14px; font-weight:700; color:var(--primary);
-  margin-bottom:6px;
-}
-.review-link-desc {
-  font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.6;
-}
-.review-link-url {
-  background:#fff; border:1px solid var(--border);
-  border-radius:7px; padding:10px 14px;
-  font-size:13px; color:var(--primary); font-weight:600;
-  word-break:break-all; margin-bottom:10px;
-  font-family:"Cascadia Code","Consolas",monospace;
-}
-.btn-copy {
-  display:inline-flex; align-items:center; gap:6px;
-  padding:8px 20px; border-radius:7px;
-  background:var(--primary); color:#fff;
-  border:none; font-size:13px; font-weight:700;
-  cursor:pointer; font-family:inherit;
-  transition:all .15s;
-}
-.btn-copy:hover { background:var(--primary-light); }
-.btn-copy.copied { background:var(--success); }
-.copy-hint {
-  display:none; margin-top:8px;
-  font-size:12px; color:var(--success); font-weight:600;
-}
-.copy-hint.show { display:block; }
 
 @media (max-width:580px) {
   .form-grid { grid-template-columns:1fr; }
@@ -332,6 +316,12 @@ body {
 </head>
 <body>
 
+<!-- Loading overlay（登入驗證中） -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">驗證身份中，請稍候…</div>
+</div>
+
 <header class="site-header">
   <div class="header-brand">
     <div class="logo">MG</div>
@@ -341,8 +331,8 @@ body {
     </div>
   </div>
   <div class="header-user">
-    <div class="avatar">王</div>
-    <span>王小明｜銘勁八德所</span>
+    <div class="avatar" id="hAvatar">？</div>
+    <span id="hName">載入中…</span>
   </div>
 </header>
 
@@ -367,11 +357,11 @@ body {
     <div class="form-grid">
       <div class="field">
         <label>申請人 <span class="auto-badge">自動帶入</span></label>
-        <input type="text" value="王小明" readonly>
+        <input type="text" id="applicantName" readonly placeholder="登入後自動帶入">
       </div>
       <div class="field">
         <label>所屬單位 <span class="auto-badge">自動帶入</span></label>
-        <input type="text" value="銘勁八德所" readonly>
+        <input type="text" id="applicantUnit" readonly placeholder="登入後自動帶入">
       </div>
     </div>
   </div>
@@ -489,33 +479,102 @@ body {
     <div class="success-title">申請已成功送出！</div>
     <div class="success-sub">系統將依簽核流程逐關通知審核人員，<br>您可隨時登入查詢進度。</div>
     <div class="case-num" id="caseNum">案件編號：SC-2026-0001</div>
-
-    <!-- 審核連結區塊 -->
-    <div class="review-link-box">
-      <div class="review-link-title">📋 主管審核連結</div>
-      <div class="review-link-desc">請將以下連結傳送給第一關審核主管，主管點擊後即可進入簽核頁面</div>
-      <div class="review-link-url" id="reviewLinkUrl">review.html?id=SC-2026-0001</div>
-      <button class="btn-copy" id="copyBtn" onclick="copyReviewLink()">複製連結</button>
-      <div class="copy-hint" id="copyHint">已複製！可直接貼到 Teams 或 Email 傳給主管</div>
-    </div>
-
-    <button class="btn btn-primary" onclick="location.reload()" style="margin-top:8px;">返回申請首頁</button>
+    <button class="btn btn-primary" onclick="location.reload()">返回申請首頁</button>
   </div>
 </div>
 
 <script>
+// ── MSAL 設定 ──────────────────────────────────────
+const msalConfig = {
+  auth: {
+    clientId: 'a1ba1c5a-fe23-4c00-bad8-43b262920fd0',
+    authority: 'https://login.microsoftonline.com/6cfd6e7d-2a19-4221-9694-84d6e95ede87',
+    redirectUri: 'https://MjmotorTY.github.io/MJmotor/',
+  },
+  cache: { cacheLocation: 'sessionStorage' },
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const SCOPES = ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'];
+
+// ── 登入初始化 ──────────────────────────────────────
+async function initAuth() {
+  await msalInstance.handleRedirectPromise();
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    msalInstance.loginRedirect({ scopes: SCOPES });
+    return null;
+  }
+  return accounts[0];
+}
+
+async function getToken() {
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts.length) return null;
+  try {
+    const result = await msalInstance.acquireTokenSilent({
+      scopes: SCOPES,
+      account: accounts[0],
+    });
+    return result.accessToken;
+  } catch {
+    msalInstance.loginRedirect({ scopes: SCOPES });
+    return null;
+  }
+}
+
+async function getUserInfo() {
+  const token = await getToken();
+  if (!token) return null;
+  const res = await fetch(
+    'https://graph.microsoft.com/v1.0/me?$select=displayName,officeLocation,userPrincipalName',
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const user = await res.json();
+  return {
+    name:  user.displayName,
+    unit:  user.officeLocation || '（未設定）',
+    email: user.userPrincipalName,
+  };
+}
+
+// ── 頁面載入 ──────────────────────────────────────
+let currentUser = null;
+
+window.addEventListener('load', async () => {
+  const account = await initAuth();
+  if (!account) return; // 自動跳轉登入中
+
+  const user = await getUserInfo();
+  if (!user) return;
+
+  currentUser = user;
+
+  // 帶入 Header
+  document.getElementById('hAvatar').textContent = user.name.charAt(0);
+  document.getElementById('hName').textContent   = `${user.name}｜${user.unit}`;
+
+  // 帶入表單欄位
+  document.getElementById('applicantName').value = user.name;
+  document.getElementById('applicantUnit').value = user.unit;
+
+  // 隱藏 loading
+  document.getElementById('loadingOverlay').classList.add('hide');
+});
+
+// ── 特案分類與審核流程 ──────────────────────────────
 const ROUTES = {
   '新車': {
     subtypes: ['本月無法領牌','更改車型車色','調車申請','配件異動','領牌異動','溢收款申請退費','匯款資料異動','訂單異動'],
     reviewers: {
-      '本月無法領牌':    ['據點主管','營業部主管','車業組-車業主任'],
-      '更改車型車色':    ['據點主管','營業部主管','車業組-車業主任'],
-      '調車申請':        ['據點主管','營業部主管','車業組-車業主任'],
-      '配件異動':        ['據點主管','營業部主管','車業組-車業主任','財管部-黃部長','總經理'],
-      '領牌異動':        ['據點主管','營業部主管','車業組-車業主任'],
-      '溢收款申請退費':  ['據點主管','營業部主管','車業組-車業主任','財務組-筑喬主任','財管部-黃部長','總經理'],
-      '匯款資料異動':    ['據點主管','營業部主管','車業組-車業主任','財務組-筑喬主任','財管部-黃部長','總經理'],
-      '訂單異動':        ['據點主管','營業部主管','車業組-車業主任'],
+      '本月無法領牌':   ['據點主管','營業部主管','車業組-車業主任'],
+      '更改車型車色':   ['據點主管','營業部主管','車業組-車業主任'],
+      '調車申請':       ['據點主管','營業部主管','車業組-車業主任'],
+      '配件異動':       ['據點主管','營業部主管','車業組-車業主任','財管部-黃部長','總經理'],
+      '領牌異動':       ['據點主管','營業部主管','車業組-車業主任'],
+      '溢收款申請退費': ['據點主管','營業部主管','車業組-車業主任','財務組-筑喬主任','財管部-黃部長','總經理'],
+      '匯款資料異動':   ['據點主管','營業部主管','車業組-車業主任','財務組-筑喬主任','財管部-黃部長','總經理'],
+      '訂單異動':       ['據點主管','營業部主管','車業組-車業主任'],
     }
   },
   '顧關': {
@@ -527,20 +586,13 @@ const ROUTES = {
   },
   '保險': {
     subtypes: ['保險相關'],
-    reviewers: {
-      '保險相關': ['據點主管','營業部主管','營企組-孟璇'],
-    }
+    reviewers: { '保險相關': ['據點主管','營業部主管','營企組-孟璇'] }
   },
   '其他': {
     subtypes: ['其他'],
-    reviewers: {
-      '其他': ['據點主管','營業部主管'],
-    }
+    reviewers: { '其他': ['據點主管','營業部主管'] }
   }
 };
-
-// 會簽流程定義（申請端不顯示，保留供資料參考）
-// 實際會簽設定請於審核頁面（review.html）由主管操作
 
 let selectedCat = '';
 let uploadedFiles = [];
@@ -571,21 +623,21 @@ function onSubtypeChange() {
   const sub = document.getElementById('subtype').value;
   document.getElementById('err-sub').classList.remove('show');
   if (sub && selectedCat) {
-    const reviewers = ROUTES[selectedCat].reviewers[sub] || [];
-    renderTracker(reviewers, sub);
+    renderTracker(ROUTES[selectedCat].reviewers[sub] || []);
   }
 }
 
-function renderTracker(reviewers, subtype) {
+function renderTracker(reviewers) {
   const wrap = document.getElementById('trackerWrap');
   if (!reviewers.length) {
     wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">請選擇子項目以顯示審核流程</div>';
     return;
   }
-  const nodes = [{ label:'申請人', who:'王小明', state:'done' },
+  const applicantName = currentUser ? currentUser.name : '申請人';
+  const nodes = [
+    { label:'申請人', who: applicantName, state:'done' },
     ...reviewers.map((r,i) => ({ label:`第${i+1}關`, who:r, state: i===0?'active':'pending' }))
   ];
-
   wrap.innerHTML = '<div class="tracker">' + nodes.map(n => `
     <div class="tnode ${n.state}">
       <div class="tdot">${n.state==='done'?'✓':''}</div>
@@ -598,17 +650,15 @@ function renderTracker(reviewers, subtype) {
 function handleFiles(files) {
   Array.from(files).forEach(f => {
     if (uploadedFiles.length >= 5) { showToast('最多上傳 5 個檔案','error'); return; }
-    const allowed = ['pdf','jpg','jpeg','png','heic'];
     const ext = f.name.split('.').pop().toLowerCase();
-    if (!allowed.includes(ext)) { showToast(`不支援 .${ext} 格式`,'error'); return; }
+    if (!['pdf','jpg','jpeg','png','heic'].includes(ext)) { showToast(`不支援 .${ext} 格式`,'error'); return; }
     uploadedFiles.push(f);
   });
   renderFileList();
 }
 
 function renderFileList() {
-  const list = document.getElementById('fileList');
-  list.innerHTML = uploadedFiles.map((f,i) => `
+  document.getElementById('fileList').innerHTML = uploadedFiles.map((f,i) => `
     <div class="file-item">
       <span style="font-size:16px;">${f.name.endsWith('.pdf')?'📄':'🖼️'}</span>
       <span class="fname">${f.name}</span>
@@ -625,9 +675,9 @@ document.getElementById('content').addEventListener('input', function() {
 
 function validate() {
   let ok = true;
-  const show = (id,show) => document.getElementById(id).classList.toggle('show',show);
-  const val = id => document.getElementById(id)?.value.trim();
-  const mark = (id,err) => { document.getElementById(id)?.classList.toggle('error',err); };
+  const show = (id,v) => document.getElementById(id).classList.toggle('show',v);
+  const val  = id => document.getElementById(id)?.value.trim();
+  const mark = (id,v) => document.getElementById(id)?.classList.toggle('error',v);
 
   if (!selectedCat) { show('err-cat',true); ok=false; }
 
@@ -663,50 +713,16 @@ function submitForm() {
   }
   const btn = document.getElementById('submitBtn');
   btn.disabled = true; btn.textContent = '送出中…';
+
+  // TODO: 串接 SharePoint 寫入，目前先模擬
   setTimeout(() => {
     const num = 'SC-2026-' + String(Math.floor(Math.random()*9000)+1000);
     document.getElementById('caseNum').textContent = '案件編號：' + num;
-
-    // 自動偵測目前網址，產生 review.html 連結
-    // 相容：GitHub Pages、本機開啟、任何部署路徑
-    const currentPath = window.location.href;
-    const basePath = currentPath
-      .replace(/[^/]*\.html.*$/, '')  // 移除目前 html 檔名與後面的參數
-      .replace(/\/$/, '');            // 移除結尾斜線
-    const reviewUrl = basePath + '/Approval_Form_review.html?id=' + num;
-
-    document.getElementById('reviewLinkUrl').textContent = reviewUrl;
-    document.getElementById('copyBtn').onclick = () => copyReviewLink(reviewUrl);
     document.getElementById('successOverlay').classList.add('show');
   }, 1200);
 }
 
-function copyReviewLink(url) {
-  const link = url || document.getElementById('reviewLinkUrl').textContent;
-  navigator.clipboard.writeText(link).then(() => {
-    const btn = document.getElementById('copyBtn');
-    const hint = document.getElementById('copyHint');
-    btn.textContent = '✓ 已複製';
-    btn.classList.add('copied');
-    hint.classList.add('show');
-    setTimeout(() => {
-      btn.textContent = '複製連結';
-      btn.classList.remove('copied');
-    }, 3000);
-  }).catch(() => {
-    // 降級方案：選取文字讓使用者手動複製
-    const el = document.getElementById('reviewLinkUrl');
-    const range = document.createRange();
-    range.selectNode(el);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    showToast('請按 Ctrl+C 複製連結','success');
-  });
-}
-
-function saveDraft() {
-  showToast('草稿已儲存','success');
-}
+function saveDraft() { showToast('草稿已儲存','success'); }
 
 function showToast(msg, type='success') {
   const wrap = document.getElementById('toastWrap');

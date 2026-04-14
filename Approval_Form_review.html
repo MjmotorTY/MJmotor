@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>特案簽核審核 — 銘勁汽車 MG</title>
+
+<!-- MSAL.js -->
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+
 <style>
 :root {
   --primary:#1a5276; --primary-light:#2e86c1; --accent:#e67e22;
@@ -15,6 +19,20 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── Loading overlay ── */
+.loading-overlay{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.loading-overlay.hide{display:none;}
+.loading-spinner{width:40px;height:40px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--primary);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--muted);}
+
+/* ── 無權限提示 ── */
+.no-access{display:none;position:fixed;inset:0;background:var(--bg);z-index:998;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:24px;}
+.no-access.show{display:flex;}
+.no-access-icon{font-size:48px;}
+.no-access-title{font-size:20px;font-weight:700;color:var(--danger);}
+.no-access-sub{font-size:14px;color:var(--muted);line-height:1.8;}
 
 .site-header{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.15);position:sticky;top:0;z-index:100;}
 .header-brand{display:flex;align-items:center;gap:12px;}
@@ -60,7 +78,7 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 .tlabel{font-size:11px;color:var(--muted);}
 .twho{font-size:11px;color:var(--primary);font-weight:600;}
 .tstatus{font-size:10px;margin-top:2px;}
-.tstatus.done{color:var(--success);} .tstatus.me,.tstatus.active{color:var(--accent);} .tstatus.pending{color:var(--muted);}
+.tstatus.done{color:var(--success);}.tstatus.me,.tstatus.active{color:var(--accent);}.tstatus.pending{color:var(--muted);}
 
 .att-grid{display:flex;gap:10px;flex-wrap:wrap;}
 .att-item{display:flex;align-items:center;gap:8px;background:#f4f6f8;border-radius:8px;padding:9px 14px;border:1px solid var(--border);font-size:13px;cursor:pointer;transition:all .15s;}
@@ -69,7 +87,7 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 .log-list{display:flex;flex-direction:column;gap:12px;}
 .log-item{display:flex;gap:14px;align-items:flex-start;}
 .log-dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0;}
-.log-dot.done{background:var(--success);} .log-dot.active{background:var(--accent);} .log-dot.pending{background:var(--border);}
+.log-dot.done{background:var(--success);}.log-dot.active{background:var(--accent);}.log-dot.pending{background:var(--border);}
 .log-body{flex:1;}
 .log-title{font-size:13px;font-weight:700;color:var(--text);}
 .log-meta{font-size:11px;color:var(--muted);}
@@ -116,7 +134,6 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 .btn-supplement{background:var(--warning);color:#fff;}
 .btn:disabled{opacity:.5;cursor:not-allowed;}
 
-/* co-sign */
 .cosign-section{margin-top:16px;background:#f7f9fc;border:1.5px dashed #b8cfe8;border-radius:8px;padding:14px 16px;}
 .cosign-title{font-size:13px;font-weight:700;color:var(--primary);margin-bottom:4px;}
 .cosign-desc{font-size:12px;color:var(--muted);margin-bottom:12px;}
@@ -138,7 +155,6 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 .cosign-chip{font-size:11px;padding:2px 8px;border-radius:4px;background:#fff;border:1px solid #aed6f1;color:var(--primary);}
 .cosign-arrow{font-size:11px;color:var(--muted);}
 
-/* result */
 .result-overlay{display:none;position:fixed;inset:0;background:rgba(240,244,248,.96);z-index:200;align-items:center;justify-content:center;}
 .result-overlay.show{display:flex;}
 .result-box{text-align:center;max-width:400px;padding:0 20px;}
@@ -147,12 +163,10 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 .result-title{font-size:22px;font-weight:700;margin-bottom:8px;}
 .result-sub{font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.8;white-space:pre-line;}
 
-/* simulate fab */
 .sim-fab{position:fixed;bottom:28px;right:28px;z-index:150;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
 .sim-label{font-size:11px;color:var(--muted);text-align:right;background:#fff;padding:3px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);}
 .sim-btn{background:#fff;color:var(--primary);border:2px solid var(--primary);border-radius:99px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(26,82,118,.18);display:flex;align-items:center;gap:8px;transition:all .15s;white-space:nowrap;}
 .sim-btn:hover{background:var(--primary);color:#fff;transform:translateY(-2px);}
-.sim-btn:active{transform:translateY(0);}
 
 @media(max-width:580px){
   .info-grid{grid-template-columns:1fr;}
@@ -164,21 +178,34 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 </head>
 <body>
 
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">驗證身份中，請稍候…</div>
+</div>
+
+<!-- 無權限提示 -->
+<div class="no-access" id="noAccess">
+  <div class="no-access-icon">🔒</div>
+  <div class="no-access-title">您沒有審核此案件的權限</div>
+  <div class="no-access-sub">此頁面僅供本案件的指定審核人員使用。<br>如有疑問請聯繫管理員。</div>
+</div>
+
 <header class="site-header">
   <div class="header-brand">
     <div class="logo">MG</div>
     <div><div class="name">銘勁汽車</div><div class="sub">特案報告申請系統</div></div>
   </div>
   <div class="header-user">
-    <div class="avatar" id="hAvatar">李</div>
-    <span id="hName">李主管（據點主管）｜銘勁八德所</span>
+    <div class="avatar" id="hAvatar">？</div>
+    <span id="hName">載入中…</span>
   </div>
 </header>
 
 <div class="review-banner">
   <div class="banner-badge">待您簽核</div>
   <div>
-    <div class="banner-text" id="bannerText">您有 1 件特案申請等待您的審核（第 1 關）</div>
+    <div class="banner-text" id="bannerText">驗證中…</div>
     <div class="banner-sub">請仔細閱讀申請內容後，選擇核准、退回或要求補件</div>
   </div>
 </div>
@@ -286,7 +313,7 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 
 </div>
 
-<!-- 模擬浮動按鈕 -->
+<!-- 模擬浮動按鈕（上線前移除） -->
 <div class="sim-fab">
   <div class="sim-label" id="simLabel">🧪 測試模式　第 1 關 / 共 5 關</div>
   <button class="sim-btn" id="simBtn" onclick="simulateNext()">⏭ 模擬下一關簽核</button>
@@ -303,6 +330,82 @@ body{font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",sans
 </div>
 
 <script>
+// ── MSAL 設定 ──────────────────────────────────────
+const msalConfig = {
+  auth: {
+    clientId: 'a1ba1c5a-fe23-4c00-bad8-43b262920fd0',
+    authority: 'https://login.microsoftonline.com/6cfd6e7d-2a19-4221-9694-84d6e95ede87',
+    redirectUri: 'https://MjmotorTY.github.io/MJmotor/',
+  },
+  cache: { cacheLocation: 'sessionStorage' },
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const SCOPES = ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'];
+
+async function initAuth() {
+  await msalInstance.handleRedirectPromise();
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    msalInstance.loginRedirect({ scopes: SCOPES });
+    return null;
+  }
+  return accounts[0];
+}
+
+async function getToken() {
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts.length) return null;
+  try {
+    const result = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
+    return result.accessToken;
+  } catch {
+    msalInstance.loginRedirect({ scopes: SCOPES });
+    return null;
+  }
+}
+
+async function getUserInfo() {
+  const token = await getToken();
+  if (!token) return null;
+  const res = await fetch(
+    'https://graph.microsoft.com/v1.0/me?$select=displayName,officeLocation,userPrincipalName',
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const user = await res.json();
+  return {
+    name:  user.displayName,
+    unit:  user.officeLocation || '',
+    email: user.userPrincipalName,
+  };
+}
+
+// ── 頁面載入 ──────────────────────────────────────
+let currentUser = null;
+
+window.addEventListener('load', async () => {
+  const account = await initAuth();
+  if (!account) return;
+
+  const user = await getUserInfo();
+  if (!user) return;
+
+  currentUser = user;
+
+  // 更新 Header
+  document.getElementById('hAvatar').textContent = user.name.charAt(0);
+  document.getElementById('hName').textContent   = `${user.name}（${REVIEWERS[step].role}）｜${user.unit}`;
+  document.getElementById('bannerText').textContent = `您有 1 件特案申請等待您的審核（第 ${step+1} 關）`;
+
+  // 隱藏 loading
+  document.getElementById('loadingOverlay').classList.add('hide');
+
+  // TODO: 串接 SharePoint 後，在此比對 user.email 與本關審核人 Email
+  // 如果不符合則顯示無權限提示：
+  // document.getElementById('noAccess').classList.add('show');
+});
+
+// ── 審核人員資料（之後改由 SharePoint 動態載入）──────
 const REVIEWERS = [
   { role:'據點主管',        name:'李主管',   avatar:'李' },
   { role:'營業部主管',      name:'陳部主管', avatar:'陳' },
@@ -313,29 +416,28 @@ const REVIEWERS = [
 
 const CO_SIGN_DEPTS = {
   '服務部': {
-    label: '服務部會簽',
-    flow:  'PDI-琇如 → 服務部廠長 → 服務部部長',
+    label:   '服務部會簽',
+    flow:    'PDI-琇如 → 服務部廠長 → 服務部部長',
     members: ['服務部-PDI-琇如','服務部-廠長','服務部-部長'],
   },
   '財管部': {
-    label: '財管部會簽',
-    flow:  '財管部-黃部長',
+    label:   '財管部會簽',
+    flow:    '財管部-黃部長',
     members: ['財管部-黃部長'],
   },
 };
 
-// state
-let step = 0;                   // 目前第幾關 (0-based)
-let chosenCoSign = {};          // { '服務部': 1, '財管部': 3 } — 值為第幾關設定 (1-based)
+let step = 0;
+let chosenCoSign = {};
 let currentAction = '';
 const TOTAL = REVIEWERS.length;
 
 const logs = [
-  { dot:'done',   title:'申請人 王小明 送出申請',         meta:'2026-04-08　09:35' },
-  { dot:'active', title:'第1關　等待 據點主管（李主管）簽核', meta:'系統通知已發送　09:35' },
+  { dot:'done',   title:'申請人 王小明 送出申請',              meta:'2026-04-08　09:35' },
+  { dot:'active', title:'第1關　等待 據點主管（李主管）簽核',  meta:'系統通知已發送　09:35' },
 ];
 
-/* ── render ────────────────────────── */
+// ── Render ──────────────────────────────────────
 function renderTracker() {
   const nodes = [
     { label:'申請人', who:'王小明', state:'done', st:'已送出' },
@@ -362,7 +464,7 @@ function renderLog() {
       <div class="log-body">
         <div class="log-title">${l.title}</div>
         <div class="log-meta">${l.meta}</div>
-        ${l.cosign ? `<span class="log-cosign-tag">會簽：${l.cosign}</span>` : ''}
+        ${l.cosign  ? `<span class="log-cosign-tag">會簽：${l.cosign}</span>` : ''}
         ${l.comment ? `<div class="log-comment">${l.comment}</div>` : ''}
       </div>
     </div>`).join('');
@@ -371,10 +473,9 @@ function renderLog() {
 function renderCoSignOpts() {
   let html = '';
   for (const [dept, info] of Object.entries(CO_SIGN_DEPTS)) {
-    const takenStep = chosenCoSign[dept]; // undefined or 1-based step
+    const takenStep  = chosenCoSign[dept];
     const takenByPrev = takenStep !== undefined && takenStep !== step + 1;
     const takenByMe   = takenStep === step + 1;
-
     if (takenByPrev) {
       html += `<label class="cosign-opt disabled">
         <input type="checkbox" checked disabled>
@@ -399,7 +500,7 @@ function renderCoSignOpts() {
 }
 
 function renderCoSignPreview() {
-  const el = document.getElementById('cosignPreview');
+  const el   = document.getElementById('cosignPreview');
   const mine = Object.keys(chosenCoSign).filter(d => chosenCoSign[d] === step + 1);
   if (!mine.length) { el.style.display='none'; return; }
   let html = '<div class="cosign-preview-title">本關會簽流程：</div>';
@@ -420,18 +521,18 @@ function onCoSign(dept, checked) {
   renderCoSignPreview();
 }
 
-/* ── header / labels ───────────────── */
 function updateMeta() {
   const r = REVIEWERS[step];
-  document.getElementById('hAvatar').textContent = r.avatar;
-  document.getElementById('hName').textContent   = `${r.name}（${r.role}）｜銘勁八德所`;
+  if (currentUser) {
+    document.getElementById('hAvatar').textContent = currentUser.name.charAt(0);
+    document.getElementById('hName').textContent   = `${currentUser.name}（${r.role}）｜${currentUser.unit}`;
+  }
   document.getElementById('bannerText').textContent = `您有 1 件特案申請等待您的審核（第 ${step+1} 關）`;
   document.getElementById('stageLabel').textContent = `第 ${step+1} 關 / 共 ${TOTAL} 關`;
   document.getElementById('simLabel').textContent   = `🧪 測試模式　第 ${step+1} 關 / 共 ${TOTAL} 關`;
   document.getElementById('simBtn').textContent = step === TOTAL-1 ? '⏭ 模擬最終核准完成' : '⏭ 模擬下一關簽核';
 }
 
-/* ── action ────────────────────────── */
 function resetPanel() {
   currentAction = '';
   ['approve','reject','supplement'].forEach(a => {
@@ -474,27 +575,21 @@ function submitReview() {
   }
   const btn = document.getElementById('submitBtn');
   btn.disabled = true; btn.textContent = '送出中…';
+
+  // TODO: 串接 SharePoint 寫入
   setTimeout(() => showResult(currentAction), 800);
 }
 
-/* ── simulate ──────────────────────── */
 function simulateNext() {
-  const r = REVIEWERS[step];
-  const t = new Date();
+  const r  = REVIEWERS[step];
+  const t  = new Date();
   const ts = `2026-04-08　${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
   const mine = Object.keys(chosenCoSign).filter(d => chosenCoSign[d] === step+1);
 
-  // flip active → done
   for (let i = logs.length-1; i >= 0; i--) {
     if (logs[i].dot === 'active') { logs[i].dot = 'done'; break; }
   }
-
-  logs.push({
-    dot: 'done',
-    title: `第${step+1}關　${r.role}（${r.name}）已核准`,
-    meta: ts,
-    cosign: mine.length ? mine.join('、') : '',
-  });
+  logs.push({ dot:'done', title:`第${step+1}關　${r.role}（${r.name}）已核准`, meta:ts, cosign: mine.length ? mine.join('、') : '' });
 
   if (step < TOTAL - 1) {
     step++;
@@ -503,7 +598,6 @@ function simulateNext() {
     renderTracker(); renderLog(); updateMeta(); resetPanel();
     window.scrollTo({ top:0, behavior:'smooth' });
   } else {
-    // all done
     logs.push({ dot:'done', title:'所有關卡審核完成，申請已核准', meta: ts });
     renderLog();
     setTimeout(() => {
@@ -516,12 +610,11 @@ function simulateNext() {
   }
 }
 
-/* ── result ────────────────────────── */
 function showResult(action) {
   const cfgs = {
-    approve:    { icon:'✓', bg:'var(--success)', title:'已核准！',    sub:`申請案件 SC-2026-0042 已通過第 ${step+1} 關審核，\n系統已通知下一關審核人員繼續簽核。` },
-    reject:     { icon:'✕', bg:'var(--danger)',  title:'已退回申請',  sub:`案件已退回，\n系統已通知申請人王小明，請其修改後重新送出。` },
-    supplement: { icon:'⊕', bg:'var(--warning)', title:'已要求補件', sub:`已通知申請人王小明補充所需資料，\n補件完成後流程將繼續進行。` },
+    approve:    { icon:'✓', bg:'var(--success)', title:'已核准！',   sub:`申請案件 SC-2026-0042 已通過第 ${step+1} 關審核，\n系統已通知下一關審核人員繼續簽核。` },
+    reject:     { icon:'✕', bg:'var(--danger)',  title:'已退回申請', sub:`案件已退回，\n系統已通知申請人，請其修改後重新送出。` },
+    supplement: { icon:'⊕', bg:'var(--warning)', title:'已要求補件', sub:`已通知申請人補充所需資料，\n補件完成後流程將繼續進行。` },
   };
   const c = cfgs[action];
   showResultBox(c.icon, c.bg, c.title, c.sub);
@@ -538,7 +631,7 @@ function showResultBox(icon, bg, title, sub) {
   document.getElementById('resultOverlay').classList.add('show');
 }
 
-/* ── init ──────────────────────────── */
+// ── Init ──────────────────────────────────────
 renderTracker(); renderLog(); renderCoSignOpts(); updateMeta();
 </script>
 </body>
