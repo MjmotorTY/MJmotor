@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>特案報告申請 — 銘勁汽車 MG</title>
+
+<!-- MSAL.js -->
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+
+<style>
+:root {
+  --primary: #1a5276;
+  --primary-light: #2e86c1;
+  --accent: #e67e22;
+  --accent-light: #f39c12;
+  --bg: #f0f4f8;
+  --card: #ffffff;
+  --text: #1a252f;
+  --muted: #7f8c8d;
+  --border: #d5dce4;
+  --success: #1e8449;
+  --success-bg: #eafaf1;
+  --danger: #c0392b;
+  --danger-bg: #fdedec;
+  --warning: #d68910;
+  --warning-bg: #fef9e7;
+  --info-bg: #eaf4fb;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(26,82,118,.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Loading overlay ── */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px;
+}
+.loading-overlay.hide { display: none; }
+.loading-spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--muted); }
+
+/* ── Header ── */
+.site-header {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: #fff;
+  padding: 0 24px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  position: sticky; top: 0; z-index: 100;
+}
+.header-brand { display:flex; align-items:center; gap:12px; }
+.header-brand .logo {
+  width:34px; height:34px; border-radius:8px;
+  background: rgba(255,255,255,.2);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:15px; letter-spacing:-.5px;
+}
+.header-brand .name { font-size:16px; font-weight:700; letter-spacing:.02em; }
+.header-brand .sub { font-size:11px; opacity:.7; }
+.header-user {
+  display:flex; align-items:center; gap:10px;
+  font-size:13px; opacity:.9;
+}
+.avatar {
+  width:30px; height:30px; border-radius:50%;
+  background: rgba(255,255,255,.25);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:12px;
+}
+
+/* ── Layout ── */
+.page-wrap { max-width:780px; margin:0 auto; padding:32px 20px 60px; }
+.page-title { font-size:22px; font-weight:700; color:var(--primary); margin-bottom:4px; }
+.page-sub { font-size:13px; color:var(--muted); margin-bottom:28px; }
+
+/* ── Steps indicator ── */
+.steps {
+  display:flex; align-items:center; gap:0;
+  margin-bottom:32px;
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.step-item {
+  flex:1; padding:12px 10px; text-align:center;
+  font-size:12px; color:var(--muted);
+  border-right:1px solid var(--border);
+  position:relative;
+}
+.step-item:last-child { border-right:none; }
+.step-item.active { background:var(--info-bg); color:var(--primary); font-weight:700; }
+.step-item .sn {
+  display:block; width:20px; height:20px; border-radius:50%;
+  background:var(--border); color:#fff; font-size:11px; font-weight:700;
+  margin:0 auto 4px; line-height:20px;
+}
+.step-item.active .sn { background:var(--primary); }
+.step-item.done .sn { background:var(--success); }
+
+/* ── Card ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.card-header {
+  display:flex; align-items:center; gap:10px;
+  border-bottom:2px solid var(--accent);
+  padding-bottom:12px; margin-bottom:20px;
+}
+.card-icon {
+  width:32px; height:32px; border-radius:8px;
+  background:var(--primary); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px;
+}
+.card-title { font-size:15px; font-weight:700; color:var(--primary); }
+
+/* ── Form Grid ── */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-grid .full { grid-column:1/-1; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field label {
+  font-size:13px; font-weight:600; color:var(--text);
+  display:flex; align-items:center; gap:4px;
+}
+.req { color:var(--danger); font-size:12px; }
+.auto-badge {
+  font-size:10px; padding:1px 7px; border-radius:99px;
+  background:var(--info-bg); color:var(--primary);
+  border:1px solid #aed6f1; font-weight:600;
+}
+.field input, .field select, .field textarea {
+  height:40px; padding:0 12px;
+  border:1.5px solid var(--border); border-radius:8px;
+  font-size:14px; color:var(--text);
+  font-family:inherit;
+  background:#fff;
+  transition:border-color .15s, box-shadow .15s;
+  outline:none;
+}
+.field textarea { height:100px; padding:10px 12px; resize:vertical; }
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color:var(--primary-light);
+  box-shadow:0 0 0 3px rgba(46,134,193,.12);
+}
+.field input.error, .field select.error, .field textarea.error {
+  border-color:var(--danger);
+  box-shadow:0 0 0 3px rgba(192,57,43,.10);
+}
+.field input[readonly] {
+  background:#f7f9fc; color:var(--muted); cursor:default;
+}
+.field-hint { font-size:11px; color:var(--muted); }
+.field-err { font-size:11px; color:var(--danger); display:none; }
+.field-err.show { display:block; }
+
+/* ── Category badge ── */
+.cat-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.cat-chip {
+  padding:7px 16px; border-radius:99px;
+  border:1.5px solid var(--border);
+  font-size:13px; font-weight:600; cursor:pointer;
+  transition:all .15s; color:var(--muted); background:#fff;
+}
+.cat-chip:hover { border-color:var(--primary-light); color:var(--primary); }
+.cat-chip.selected { border-color:var(--primary); background:var(--primary); color:#fff; }
+
+/* ── Subtype ── */
+.subtype-wrap { display:none; }
+.subtype-wrap.show { display:block; }
+
+/* ── Conditional fields ── */
+.cond-field { display:none; }
+.cond-field.show { display:flex; }
+
+/* ── Attachment ── */
+.upload-zone {
+  border:2px dashed var(--border); border-radius:var(--radius);
+  padding:24px; text-align:center; cursor:pointer;
+  transition:all .2s; background:#fafbfc;
+}
+.upload-zone:hover { border-color:var(--primary-light); background:var(--info-bg); }
+.upload-zone input { display:none; }
+.upload-icon { font-size:28px; margin-bottom:8px; }
+.upload-text { font-size:13px; color:var(--muted); }
+.upload-text b { color:var(--primary); }
+.file-list { margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+.file-item {
+  display:flex; align-items:center; gap:10px;
+  background:#f4f6f8; border-radius:7px; padding:8px 12px;
+  font-size:13px;
+}
+.file-item .fname { flex:1; color:var(--text); font-weight:500; }
+.file-item .fsize { color:var(--muted); font-size:11px; }
+.file-item .fdel {
+  width:20px; height:20px; border-radius:50%;
+  background:var(--danger); color:#fff;
+  border:none; cursor:pointer; font-size:11px;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ── Tracker ── */
+.tracker { display:flex; align-items:flex-start; gap:0; margin-top:4px; overflow-x:auto; }
+.tnode { flex:1; min-width:80px; text-align:center; position:relative; }
+.tnode::before {
+  content:''; position:absolute; top:14px; left:50%; right:-50%;
+  height:2px; background:var(--border); z-index:0;
+}
+.tnode:last-child::before { display:none; }
+.tnode.done::before { background:var(--success); }
+.tnode.active::before { background:var(--border); }
+.tdot {
+  width:28px; height:28px; border-radius:50%;
+  margin:0 auto 6px; position:relative; z-index:1;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#fff;
+}
+.tnode.done .tdot { background:var(--success); }
+.tnode.active .tdot { background:var(--accent); animation:pulse 1.5s infinite; }
+.tnode.pending .tdot { background:var(--border); color:var(--muted); }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(230,126,34,.4)} 50%{box-shadow:0 0 0 8px rgba(230,126,34,0)} }
+.tlabel { font-size:11px; color:var(--muted); line-height:1.3; }
+.twho { font-size:11px; color:var(--primary); font-weight:600; margin-top:1px; }
+.tpend { font-size:10px; color:var(--muted); }
+
+/* ── Submit ── */
+.submit-row { display:flex; justify-content:flex-end; gap:12px; margin-top:8px; }
+.btn {
+  padding:11px 28px; border-radius:8px;
+  font-size:14px; font-weight:700; cursor:pointer;
+  border:none; font-family:inherit; transition:all .15s;
+}
+.btn-outline {
+  background:#fff; color:var(--primary);
+  border:1.5px solid var(--primary);
+}
+.btn-outline:hover { background:var(--info-bg); }
+.btn-primary {
+  background:var(--primary); color:#fff;
+  box-shadow:0 2px 8px rgba(26,82,118,.25);
+}
+.btn-primary:hover { background:var(--primary-light); transform:translateY(-1px); }
+.btn-primary:active { transform:translateY(0); }
+.btn:disabled { opacity:.5; cursor:not-allowed; transform:none !important; }
+
+/* ── Toast ── */
+.toast-wrap { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+.toast {
+  background:#1a252f; color:#fff; padding:12px 18px; border-radius:8px;
+  font-size:13px; min-width:240px; max-width:320px;
+  display:flex; align-items:center; gap:10px;
+  box-shadow:0 4px 16px rgba(0,0,0,.2);
+  animation:slideIn .2s ease;
+}
+.toast.success { border-left:4px solid var(--success); }
+.toast.error   { border-left:4px solid var(--danger); }
+@keyframes slideIn { from{transform:translateX(60px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+/* ── Success overlay ── */
+.success-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(240,244,248,.95); z-index:200;
+  align-items:center; justify-content:center; flex-direction:column;
+}
+.success-overlay.show { display:flex; }
+.success-box { text-align:center; }
+.success-icon {
+  width:80px; height:80px; border-radius:50%;
+  background:var(--success); margin:0 auto 20px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:36px; color:#fff;
+  animation:popIn .4s cubic-bezier(.17,.67,.3,1.3);
+}
+@keyframes popIn { from{transform:scale(0)} to{transform:scale(1)} }
+.success-title { font-size:22px; font-weight:700; color:var(--primary); margin-bottom:8px; }
+.success-sub { font-size:14px; color:var(--muted); margin-bottom:28px; }
+.case-num {
+  background:var(--info-bg); border:1px solid #aed6f1;
+  border-radius:8px; padding:12px 24px;
+  font-size:16px; font-weight:700; color:var(--primary);
+  margin-bottom:28px;
+}
+
+@media (max-width:580px) {
+  .form-grid { grid-template-columns:1fr; }
+  .card { padding:18px 16px; }
+  .page-wrap { padding:20px 12px 60px; }
+  .steps { display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay（登入驗證中） -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">驗證身份中，請稍候…</div>
+</div>
+
+<header class="site-header">
+  <div class="header-brand">
+    <div class="logo">MG</div>
+    <div>
+      <div class="name">銘勁汽車</div>
+      <div class="sub">特案報告申請系統</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <div class="avatar" id="hAvatar">？</div>
+    <span id="hName">載入中…</span>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <div class="page-title">新增特案報告申請</div>
+  <div class="page-sub">填寫完成後送出，系統將依分類自動派送至對應簽核流程</div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step-item active"><span class="sn">1</span>填寫申請</div>
+    <div class="step-item"><span class="sn">2</span>送出審核</div>
+    <div class="step-item"><span class="sn">3</span>簽核進行中</div>
+    <div class="step-item"><span class="sn">4</span>完成</div>
+  </div>
+
+  <!-- ① 申請人資訊 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">👤</div>
+      <div class="card-title">申請人資訊</div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>申請人 <span class="auto-badge">自動帶入</span></label>
+        <input type="text" id="applicantName" readonly placeholder="登入後自動帶入">
+      </div>
+      <div class="field">
+        <label>所屬單位 <span class="auto-badge">自動帶入</span></label>
+        <input type="text" id="applicantUnit" readonly placeholder="登入後自動帶入">
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 特案分類 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📂</div>
+      <div class="card-title">特案分類</div>
+    </div>
+
+    <div class="field" style="margin-bottom:16px;">
+      <label>特案分類 <span class="req">*</span></label>
+      <div class="cat-row" id="catRow">
+        <div class="cat-chip" data-cat="新車" onclick="selectCat(this)">新車</div>
+        <div class="cat-chip" data-cat="顧關" onclick="selectCat(this)">顧關</div>
+        <div class="cat-chip" data-cat="保險" onclick="selectCat(this)">保險</div>
+        <div class="cat-chip" data-cat="其他" onclick="selectCat(this)">其他</div>
+      </div>
+      <div class="field-err" id="err-cat">請選擇特案分類</div>
+    </div>
+
+    <div class="subtype-wrap" id="subtypeWrap">
+      <div class="field">
+        <label>子項目 <span class="req">*</span></label>
+        <select id="subtype" onchange="onSubtypeChange()">
+          <option value="">-- 請選擇子項目 --</option>
+        </select>
+        <div class="field-err" id="err-sub">請選擇子項目</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 案件資訊 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📋</div>
+      <div class="card-title">案件資訊</div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>客戶姓名 <span class="req">*</span></label>
+        <input type="text" id="customerName" placeholder="請輸入客戶姓名">
+        <div class="field-err" id="err-cname">請輸入客戶姓名</div>
+      </div>
+      <div class="field">
+        <label>引擎／po號碼／車牌號碼 <span class="req">*</span></label>
+        <input type="text" id="vehicleId" placeholder="例：ABC-1234">
+        <div class="field-err" id="err-vid">請輸入引擎號碼或車牌號碼</div>
+      </div>
+
+      <!-- 新車專屬 -->
+      <div class="field cond-field" id="field-order">
+        <label>訂單號碼 <span class="req">*</span> <span class="auto-badge" style="background:#fff3e0;border-color:#f39c12;color:#b7770d;">新車必填</span></label>
+        <input type="text" id="orderNumber" placeholder="MMJT-XXXX">
+        <div class="field-hint">前綴 MMJT 固定</div>
+        <div class="field-err" id="err-order">請輸入訂單號碼（MMJT 開頭）</div>
+      </div>
+      <div class="field cond-field" id="field-model">
+        <label>車型／車色 <span class="req">*</span> <span class="auto-badge" style="background:#fff3e0;border-color:#f39c12;color:#b7770d;">新車必填</span></label>
+        <input type="text" id="vehicleModel" placeholder="例：MG5 / 星光銀">
+        <div class="field-err" id="err-model">請輸入車型與車色</div>
+      </div>
+
+      <div class="field full">
+        <label>申請內容 <span class="req">*</span></label>
+        <textarea id="content" placeholder="請詳述申請原因、背景及說明（至少 10 字）…"></textarea>
+        <div class="field-hint">字數：<span id="charCount">0</span> 字</div>
+        <div class="field-err" id="err-content">請詳述申請內容（至少 10 字）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 附件上傳 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📎</div>
+      <div class="card-title">附件上傳 <span style="font-size:12px;font-weight:400;color:var(--muted);">（選填）</span></div>
+    </div>
+    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.heic" onchange="handleFiles(this.files)">
+      <div class="upload-icon">📁</div>
+      <div class="upload-text">點擊或拖曳上傳附件<br><b>PDF、JPG、PNG、HEIC</b>　最多 5 個檔案</div>
+    </div>
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <!-- ⑤ 審核進度 -->
+  <div class="card" id="trackerCard">
+    <div class="card-header">
+      <div class="card-icon">🔄</div>
+      <div class="card-title">審核流程預覽 <span style="font-size:12px;font-weight:400;color:var(--muted);">（依分類自動帶入）</span></div>
+    </div>
+    <div id="trackerWrap">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">
+        請先選擇特案分類與子項目，系統將自動帶入對應的審核流程
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="submit-row">
+    <button class="btn btn-outline" onclick="saveDraft()">儲存草稿</button>
+    <button class="btn btn-primary" onclick="submitForm()" id="submitBtn">送出申請 →</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- Success -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-box">
+    <div class="success-icon">✓</div>
+    <div class="success-title">申請已成功送出！</div>
+    <div class="success-sub">系統將依簽核流程逐關通知審核人員，<br>您可隨時登入查詢進度。</div>
+    <div class="case-num" id="caseNum">案件編號：SC-2026-0001</div>
+    <button class="btn btn-primary" onclick="location.reload()">返回申請首頁</button>
+  </div>
+</div>
+
+<script>
+// ── MSAL 設定 ──────────────────────────────────────
+const msalConfig = {
+  auth: {
+    clientId: 'a1ba1c5a-fe23-4c00-bad8-43b262920fd0',
+    authority: 'https://login.microsoftonline.com/6cfd6e7d-2a19-4221-9694-84d6e95ede87',
+    redirectUri: 'https://MjmotorTY.github.io/MJmotor/',
+  },
+  cache: { cacheLocation: 'sessionStorage' },
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const SCOPES = ['User.Read', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'];
+
+// ── 登入初始化 ──────────────────────────────────────
+async function initAuth() {
+  await msalInstance.handleRedirectPromise();
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length === 0) {
+    msalInstance.loginRedirect({ scopes: SCOPES });
+    return null;
+  }
+  return accounts[0];
+}
+
+async function getToken() {
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts.length) return null;
+  try {
+    const result = await msalInstance.acquireTokenSilent({
+      scopes: SCOPES,
+      account: accounts[0],
+    });
+    return result.accessToken;
+  } catch {
+    msalInstance.loginRedirect({ scopes: SCOPES });
+    return null;
+  }
+}
+
+async function getUserInfo() {
+  const token = await getToken();
+  if (!token) return null;
+  const res = await fetch(
+    'https://graph.microsoft.com/v1.0/me?$select=displayName,officeLocation,userPrincipalName',
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const user = await res.json();
+  return {
+    name:  user.displayName,
+    unit:  user.officeLocation || '（未設定）',
+    email: user.userPrincipalName,
+  };
+}
+
+// ── 頁面載入 ──────────────────────────────────────
+let currentUser = null;
+
+window.addEventListener('load', async () => {
+  const account = await initAuth();
+  if (!account) return; // 自動跳轉登入中
+
+  const user = await getUserInfo();
+  if (!user) return;
+
+  currentUser = user;
+
+  // 帶入 Header
+  document.getElementById('hAvatar').textContent = user.name.charAt(0);
+  document.getElementById('hName').textContent   = `${user.name}｜${user.unit}`;
+
+  // 帶入表單欄位
+  document.getElementById('applicantName').value = user.name;
+  document.getElementById('applicantUnit').value = user.unit;
+
+  // 隱藏 loading
+  document.getElementById('loadingOverlay').classList.add('hide');
+});
+
+// ── 特案分類與審核流程 ──────────────────────────────
+const ROUTES = {
+  '新車': {
+    subtypes: ['本月無法領牌','更改車型車色','調車申請','配件異動','領牌異動','溢收款申請退費','匯款資料異動','訂單異動'],
+    reviewers: {
+      '本月無法領牌':   ['據點主管','營業部主管','車業組-車業主任'],
+      '更改車型車色':   ['據點主管','營業部主管','車業組-車業主任'],
+      '調車申請':       ['據點主管','營業部主管','車業組-車業主任'],
+      '配件異動':       ['據點主管','營業部主管','車業組-車業主任','財管部-黃部長','總經理'],
+      '領牌異動':       ['據點主管','營業部主管','車業組-車業主任'],
+      '溢收款申請退費': ['據點主管','營業部主管','車業組-車業主任','財務組-筑喬主任','財管部-黃部長','總經理'],
+      '匯款資料異動':   ['據點主管','營業部主管','車業組-車業主任','財務組-筑喬主任','財管部-黃部長','總經理'],
+      '訂單異動':       ['據點主管','營業部主管','車業組-車業主任'],
+    }
+  },
+  '顧關': {
+    subtypes: ['交車後客怨','SSI案件'],
+    reviewers: {
+      '交車後客怨': ['據點主管','營業部主管','顧關部-顧關主任','總經理'],
+      'SSI案件':    ['據點主管','營業部主管','顧關部-顧關主任','財管部-黃部長','總經理'],
+    }
+  },
+  '保險': {
+    subtypes: ['保險相關'],
+    reviewers: { '保險相關': ['據點主管','營業部主管','營企組-孟璇'] }
+  },
+  '其他': {
+    subtypes: ['其他'],
+    reviewers: { '其他': ['據點主管','營業部主管'] }
+  }
+};
+
+let selectedCat = '';
+let uploadedFiles = [];
+
+function selectCat(el) {
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCat = el.dataset.cat;
+  document.getElementById('err-cat').classList.remove('show');
+
+  const sub = document.getElementById('subtype');
+  sub.innerHTML = '<option value="">-- 請選擇子項目 --</option>';
+  ROUTES[selectedCat].subtypes.forEach(s => {
+    const o = document.createElement('option');
+    o.value = o.textContent = s;
+    sub.appendChild(o);
+  });
+  document.getElementById('subtypeWrap').classList.add('show');
+
+  const isNew = selectedCat === '新車';
+  document.getElementById('field-order').classList.toggle('show', isNew);
+  document.getElementById('field-model').classList.toggle('show', isNew);
+
+  renderTracker([]);
+}
+
+function onSubtypeChange() {
+  const sub = document.getElementById('subtype').value;
+  document.getElementById('err-sub').classList.remove('show');
+  if (sub && selectedCat) {
+    renderTracker(ROUTES[selectedCat].reviewers[sub] || []);
+  }
+}
+
+function renderTracker(reviewers) {
+  const wrap = document.getElementById('trackerWrap');
+  if (!reviewers.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">請選擇子項目以顯示審核流程</div>';
+    return;
+  }
+  const applicantName = currentUser ? currentUser.name : '申請人';
+  const nodes = [
+    { label:'申請人', who: applicantName, state:'done' },
+    ...reviewers.map((r,i) => ({ label:`第${i+1}關`, who:r, state: i===0?'active':'pending' }))
+  ];
+  wrap.innerHTML = '<div class="tracker">' + nodes.map(n => `
+    <div class="tnode ${n.state}">
+      <div class="tdot">${n.state==='done'?'✓':''}</div>
+      <div class="tlabel">${n.label}</div>
+      <div class="twho">${n.who}</div>
+      <div class="tpend">${n.state==='done'?'已送出':n.state==='active'?'等待簽核':'尚未輪到'}</div>
+    </div>`).join('') + '</div>';
+}
+
+function handleFiles(files) {
+  Array.from(files).forEach(f => {
+    if (uploadedFiles.length >= 5) { showToast('最多上傳 5 個檔案','error'); return; }
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (!['pdf','jpg','jpeg','png','heic'].includes(ext)) { showToast(`不支援 .${ext} 格式`,'error'); return; }
+    uploadedFiles.push(f);
+  });
+  renderFileList();
+}
+
+function renderFileList() {
+  document.getElementById('fileList').innerHTML = uploadedFiles.map((f,i) => `
+    <div class="file-item">
+      <span style="font-size:16px;">${f.name.endsWith('.pdf')?'📄':'🖼️'}</span>
+      <span class="fname">${f.name}</span>
+      <span class="fsize">${(f.size/1024).toFixed(0)} KB</span>
+      <button class="fdel" onclick="removeFile(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeFile(i) { uploadedFiles.splice(i,1); renderFileList(); }
+
+document.getElementById('content').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length;
+});
+
+function validate() {
+  let ok = true;
+  const show = (id,v) => document.getElementById(id).classList.toggle('show',v);
+  const val  = id => document.getElementById(id)?.value.trim();
+  const mark = (id,v) => document.getElementById(id)?.classList.toggle('error',v);
+
+  if (!selectedCat) { show('err-cat',true); ok=false; }
+
+  const sub = document.getElementById('subtype').value;
+  if (!sub) { show('err-sub',true); mark('subtype',true); ok=false; }
+  else { show('err-sub',false); mark('subtype',false); }
+
+  if (!val('customerName')) { show('err-cname',true); mark('customerName',true); ok=false; }
+  else { show('err-cname',false); mark('customerName',false); }
+
+  if (!val('vehicleId')) { show('err-vid',true); mark('vehicleId',true); ok=false; }
+  else { show('err-vid',false); mark('vehicleId',false); }
+
+  if (selectedCat === '新車') {
+    const ord = val('orderNumber');
+    if (!ord || !ord.startsWith('MMJT')) { show('err-order',true); mark('orderNumber',true); ok=false; }
+    else { show('err-order',false); mark('orderNumber',false); }
+    if (!val('vehicleModel')) { show('err-model',true); mark('vehicleModel',true); ok=false; }
+    else { show('err-model',false); mark('vehicleModel',false); }
+  }
+
+  if (val('content').length < 10) { show('err-content',true); mark('content',true); ok=false; }
+  else { show('err-content',false); mark('content',false); }
+
+  return ok;
+}
+
+function submitForm() {
+  if (!validate()) {
+    showToast('請填寫所有必填欄位','error');
+    document.querySelector('.field-err.show')?.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '送出中…';
+
+  // TODO: 串接 SharePoint 寫入，目前先模擬
+  setTimeout(() => {
+    const num = 'SC-2026-' + String(Math.floor(Math.random()*9000)+1000);
+    document.getElementById('caseNum').textContent = '案件編號：' + num;
+    document.getElementById('successOverlay').classList.add('show');
+  }, 1200);
+}
+
+function saveDraft() { showToast('草稿已儲存','success'); }
+
+function showToast(msg, type='success') {
+  const wrap = document.getElementById('toastWrap');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${type==='success'?'✓':'✕'}</span><span>${msg}</span>`;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>
